@@ -1138,6 +1138,10 @@ void ParticlesStorage::_particles_process(Particles *p_particles, double p_delta
 		//fill the trail params
 		for (uint32_t i = 0; i < p_particles->trail_params.size(); i++) {
 			uint32_t src_idx = i * p_particles->frame_history.size() / p_particles->trail_params.size();
+			if (p_particles->speed_scale <= 0.0) {
+				// Stop trails.
+				src_idx = 0;
+			}
 			p_particles->trail_params[i] = p_particles->frame_history[src_idx];
 		}
 	} else {
@@ -1445,11 +1449,12 @@ void ParticlesStorage::update_particles() {
 			int history_size = 1;
 			int trail_steps = 1;
 			if (particles->trails_enabled && particles->trail_bind_poses.size() > 1) {
-				history_size = MAX(1, int(particles->trail_lifetime * fixed_fps));
+				history_size = MAX(1, int(particles->trail_lifetime * fixed_fps / MAX(0.01, particles->speed_scale)));
 				trail_steps = particles->trail_bind_poses.size();
 			}
 
-			if (uint32_t(history_size) != particles->frame_history.size()) {
+			// No need to resize history if speed is 0.0 because trails are paused, unless it hasn't been initialized yet.
+			if (uint32_t(history_size) != particles->frame_history.size() && (particles->speed_scale > 0.0 || particles->frame_history.size() < 1)) {
 				particles->frame_history.resize(history_size);
 				memset(particles->frame_history.ptr(), 0, sizeof(ParticlesFrameParams) * history_size);
 				// Set the frame number so that we are able to distinguish an uninitialized
